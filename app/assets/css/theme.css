@@ -1,0 +1,112 @@
+/*
+  PreShape colour theme.
+  Loaded after Bootstrap (see nuxt.config.ts), so these values replace Bootstrap's defaults.
+
+  The variables are named by job, not by colour, so changing the palette
+  only means changing the five hex codes below.
+*/
+
+:root {
+  /* The palette */
+  --ps-dark: #3A405A;       /* Twilight Indigo: text, user bubbles, Send button */
+  --ps-highlight: #685044;  /* Ash Brown: hover, focus and links */
+  --ps-soft: #99B2DD;       /* Powder Blue: borders, interviewer bubbles */
+  --ps-light: #F9DEC9;      /* Powder Petal: page background, text on dark */
+  --ps-accent: #E9AFA3;     /* Powder Blush: accent (header icon button) */
+  --ps-page: #364652;       /* Page background behind the cards */
+
+  /* Bootstrap's global colours */
+  --bs-body-font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bs-body-bg: var(--ps-light);
+  --bs-body-color: var(--ps-dark);
+  --bs-emphasis-color: var(--ps-dark);
+  --bs-heading-color: var(--ps-dark);
+  --bs-border-color: var(--ps-soft);
+  --bs-primary: var(--ps-highlight);
+  --bs-primary-rgb: 104, 80, 68;
+  --bs-link-color: var(--ps-highlight);
+  --bs-link-color-rgb: 104, 80, 68;
+  --bs-link-hover-color: var(--ps-dark);
+  --bs-link-hover-color-rgb: 58, 64, 90;
+}
+
+/*
+  Page background. Set on <body> directly rather than through --bs-body-bg,
+  because Bootstrap also uses --bs-body-bg for text boxes, which should stay light.
+  Text sitting straight on the page is light so it shows up on the dark background;
+  cards, modals and text boxes set their own dark text (Bootstrap does this for
+  cards and text boxes, and the .modal rule below does it for modals).
+*/
+body {
+  background-color: var(--ps-page);
+  color: var(--ps-light);
+}
+
+/* Cards: white so they stand out from the dark page, with a Powder Blue border */
+.card {
+  --bs-card-bg: #fff;
+  --bs-card-border-color: var(--ps-soft);
+  --bs-card-cap-bg: var(--ps-light);
+}
+
+/* Modals: white box with Powder Blue dividers */
+.modal {
+  --bs-modal-bg: #fff;
+  --bs-modal-color: var(--ps-dark);
+  --bs-modal-border-color: var(--ps-soft);
+  --bs-modal-header-border-color: var(--ps-soft);
+  --bs-modal-footer-border-color: var(--ps-soft);
+}
+
+/* Primary buttons (Send, Save changes): Twilight Indigo, turning Ash Brown on hover */
+.btn-primary {
+  --bs-btn-color: var(--ps-light);
+  --bs-btn-bg: var(--ps-dark);
+  --bs-btn-border-color: var(--ps-dark);
+  --bs-btn-hover-color: var(--ps-light);
+  --bs-btn-hover-bg: var(--ps-highlight);
+  --bs-btn-hover-border-color: var(--ps-highlight);
+  --bs-btn-active-color: var(--ps-dark);
+  --bs-btn-active-bg: var(--ps-soft);
+  --bs-btn-active-border-color: var(--ps-soft);
+  --bs-btn-focus-shadow-rgb: 104, 80, 68;
+}
+
+/* Secondary buttons (modal Close): Twilight Indigo outline, filling in on hover */
+.btn-secondary {
+  --bs-btn-color: var(--ps-dark);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: var(--ps-dark);
+  --bs-btn-hover-color: var(--ps-light);
+  --bs-btn-hover-bg: var(--ps-dark);
+  --bs-btn-hover-border-color: var(--ps-dark);
+  --bs-btn-active-color: var(--ps-light);
+  --bs-btn-active-bg: var(--ps-dark);
+  --bs-btn-active-border-color: var(--ps-dark);
+  --bs-btn-focus-shadow-rgb: 58, 64, 90;
+}
+
+/* Accent button: Powder Blush with a Twilight Indigo icon
+   (the accent is light, so the icon is dark; white would be hard to see) */
+.btn-accent {
+  --bs-btn-color: var(--ps-dark);
+  --bs-btn-bg: var(--ps-accent);
+  --bs-btn-border-color: var(--ps-accent);
+  --bs-btn-hover-color: var(--ps-light);
+  --bs-btn-hover-bg: var(--ps-dark);
+  --bs-btn-hover-border-color: var(--ps-dark);
+  --bs-btn-active-color: var(--ps-light);
+  --bs-btn-active-bg: var(--ps-dark);
+  --bs-btn-active-border-color: var(--ps-dark);
+  --bs-btn-focus-shadow-rgb: 233, 175, 163;
+}
+
+/* Text boxes: Powder Blue border, Ash Brown glow when focused */
+.form-control {
+  border-color: var(--ps-soft);
+}
+
+.form-control:focus {
+  border-color: var(--ps-highlight);
+  box-shadow: 0 0 0 0.25rem rgba(104, 80, 68, 0.25);
+}
