@@ -14,6 +14,27 @@ export function startOfNextMonthUTC(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1))
 }
 
+// The user's plan, read from the database: 'free' or 'premium'
+export async function getPlan(userId: string): Promise<'free' | 'premium'> {
+  const { data, error } = await useSupabase()
+    .from('profiles')
+    .select('plan')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) {
+    throw createError({ statusCode: 500, statusMessage: `Could not load your profile: ${error.message}` })
+  }
+  return data?.plan === 'premium' ? 'premium' : 'free'
+}
+
+// Throws 403 unless the user is on the Premium plan (for Premium-only routes)
+export async function requirePremium(userId: string) {
+  if (await getPlan(userId) !== 'premium') {
+    throw createError({ statusCode: 403, statusMessage: 'Interview history is part of the Premium plan.' })
+  }
+}
+
 export async function getMonthlyUsage(userId: string) {
   const supabase = useSupabase()
 

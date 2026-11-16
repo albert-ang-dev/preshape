@@ -1,6 +1,7 @@
 // POST /api/interviews   (logged-in users only)
 // Body:    { interview_id, job_description, answers: string[10] }
-// Returns: { id, overall_score, overall_feedback, questions: [{ question, answer, score, feedback }] }
+// Returns: Premium: { id, overall_score, overall_feedback, questions: [{ question, answer, score, feedback }] }
+//          Free:    { id, overall_score, overall_feedback }   (score and summary only)
 //
 // Called once the interview is finished: grades the answers with OpenAI, then
 // completes the interview row that /api/questions created when it started.
@@ -141,6 +142,17 @@ export default defineEventHandler(async (event) => {
   }
   if (!interview) {
     throw createError({ statusCode: 409, statusMessage: 'This interview has already been graded.' })
+  }
+
+  // The full breakdown is always SAVED, but only Premium users get it back.
+  // Free users get the overall score and summary only. Filtering here, on the
+  // server, means the breakdown never reaches a Free user's browser.
+  if (await getPlan(user.id) !== 'premium') {
+    return {
+      id: interview.id,
+      overall_score: interview.overall_score,
+      overall_feedback: interview.overall_feedback,
+    }
   }
 
   return interview

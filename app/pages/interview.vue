@@ -6,6 +6,7 @@ const jobTitle = ref('')
 const jobDescription = ref('')
 
 // What the main card is doing: 'idle' | 'loading' | 'interview' | 'grading' | 'done'
+// | 'review' (showing a past interview from the history)
 const phase = ref('idle')
 const errorMessage = ref('')
 
@@ -21,7 +22,7 @@ const answerInput = ref(null)  // the answer text box
 
 // How far through the interview we are, 0–100 (for the progress bar)
 const progress = computed(() => {
-  if (phase.value === 'grading' || phase.value === 'done') return 100
+  if (phase.value === 'grading' || phase.value === 'done' || phase.value === 'review') return 100
   if (phase.value !== 'interview' || !questions.value.length) return 0
   return Math.round((currentIndex.value / questions.value.length) * 100)
 })
@@ -29,6 +30,8 @@ const progress = computed(() => {
 // Interview is busy: don't allow starting a new one
 const busy = computed(() => phase.value === 'loading' || phase.value === 'grading')
 
+// An interview is running: opening a past one would throw it away
+const inInterview = computed(() => ['loading', 'interview', 'grading'].includes(phase.value))
 // Readable message from a failed $fetch
 function errorText(error) {
   return error?.data?.message || error?.statusMessage || error?.message || 'Something went wrong.'
@@ -190,6 +193,48 @@ onMounted(() => {
   loadAccount()
 })
 
+// ---------- History (Premium only) ----------
+// The server refuses these requests for Free accounts; this just hides the button.
+const isPremium = computed(() => account.value?.plan === 'premium')
+const history = ref([])        // [{ id, job_title, overall_score, created_at }]
+const historyLoading = ref(false)
+const historyError = ref('')
+const viewing = ref(null)      // the past interview being shown: { job_title, created_at }
+
+// The title in the panel header
+const headerTitle = computed(() => (phase.value === 'review' ? viewing.value?.job_title : jobTitle.value))
+
+async function loadHistory() {
+  const { $api } = useNuxtApp()
+  historyLoading.value = true
+  historyError.value = ''
+  try {
+    history.value = await $api('/api/history')
+  } catch (error) {
+    historyError.value = errorText(error)
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function openPastInterview(item) {
+  const { $api, $bootstrap } = useNuxtApp()
+  $bootstrap.Modal.getOrCreateInstance(document.getElementById('modalHistory')).hide()
+
+  phase.value = 'review'
+  viewing.value = { job_title: item.job_title, created_at: item.created_at }
+  errorMessage.value = ''
+  chats.value = []
+  result.value = null
+
+  try {
+    result.value = await $api(`/api/history/${item.id}`)
+  } catch (error) {
+    errorMessage.value = errorText(error)
+  }
+  if (chatBody.value) chatBody.value.scrollTop = 0
+}
+
 const tips = [
   'Use the STAR method: Situation, Task, Action, Result.',
   'Give a real example whenever you can.',
@@ -214,6 +259,19 @@ const tips = [
       >
         <i class="bi bi-plus-lg"></i>
         <span>New interview</span>
+      </button>
+
+      <!-- Interview history: Premium only -->
+      <button
+        v-if="isPremium"
+        class="btn-history"
+        data-bs-toggle="modal"
+        data-bs-target="#modalHistory"
+        :disabled="inInterview"
+        @click="loadHistory"
+      >
+        <i class="bi bi-clock-history"></i>
+        <span>History</span>
       </button>
 
       <!-- Monthly usage -->
@@ -252,15 +310,19 @@ const tips = [
     <main class="main">
       <div class="panel" id="main-card">
         <!-- Header: job title, progress text and bar -->
-        <header v-if="phase === 'interview' || phase === 'grading' || phase === 'done'" class="panel-header">
+        <header v-if="['interview', 'grading', 'done', 'review'].includes(phase)" class="panel-header">
           <div class="d-flex justify-content-between align-items-center gap-3">
             <div class="text-truncate">
-              <div class="panel-eyebrow">Practice interview</div>
-              <div class="panel-title text-truncate">{{ jobTitle }}</div>
+              <div class="panel-eyebrow">
+                <template v-if="phase === 'review'">Past interview · {{ formatDate(viewing?.created_at) }}</template>
+                <template v-else>Practice interview</template>
+              </div>
+              <div class="panel-title text-truncate">{{ headerTitle }}</div>
             </div>
             <span class="progress-pill">
               <template v-if="phase === 'interview'">Question {{ currentIndex + 1 }} of {{ questions.length }}</template>
               <template v-else-if="phase === 'grading'">Grading…</template>
+              <template v-else-if="phase === 'review'"><i class="bi bi-clock-history"></i> History</template>
               <template v-else><i class="bi bi-check2"></i> Complete</template>
             </span>
           </div>
@@ -305,6 +367,12 @@ const tips = [
             <p class="empty-text mb-0">Preparing your questions…</p>
           </div>
 
+          <!-- Loading a past interview -->
+          <div v-else-if="phase === 'review' && !result && !errorMessage" class="empty">
+            <div class="typing typing-lg"><span></span><span></span><span></span></div>
+            <p class="empty-text mb-0">Loading your interview…</p>
+          </div>
+
           <template v-else>
             <div
               v-for="chat in chats"
@@ -327,7 +395,7 @@ const tips = [
             </div>
 
             <!-- The result -->
-            <section v-if="phase === 'done' && result" class="result">
+            <section v-if="(phase === 'done' || phase === 'review') && result" class="result">
               <div class="score-card">
                 <div class="score-label">Overall score</div>
                 <div class="score-number">{{ result.overall_score }}<span>/100</span></div>
@@ -335,6 +403,8 @@ const tips = [
                 <p class="score-summary">{{ result.overall_feedback }}</p>
               </div>
 
+              <!-- Only Premium results include the breakdown (the server leaves it out for Free) -->
+              <template v-if="result.questions?.length">
               <h3 class="result-heading">Question by question</h3>
               <div class="result-list">
                 <div v-for="(item, i) in result.questions" :key="i" class="result-item">
@@ -342,9 +412,11 @@ const tips = [
                     <div class="result-question"><span class="result-index">{{ i + 1 }}</span>{{ item.question }}</div>
                     <span class="score-pill">{{ item.score }}/10</span>
                   </div>
+                  <p v-if="item.answer" class="result-answer"><span>Your answer</span>{{ item.answer }}</p>
                   <p class="result-feedback">{{ item.feedback }}</p>
                 </div>
               </div>
+              </template>
 
               <div class="text-center mt-4">
                 <button
@@ -428,6 +500,50 @@ const tips = [
             <i class="bi bi-box-arrow-right"></i> Log out
           </button>
           <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= History modal (Premium) ================= -->
+  <div class="modal fade" id="modalHistory" tabindex="-1" aria-labelledby="modalHistoryLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalHistoryLabel">Interview history</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div v-if="historyError" class="error-box">
+            <i class="bi bi-exclamation-circle"></i>
+            <span class="flex-grow-1">{{ historyError }}</span>
+            <button class="btn btn-sm btn-primary rounded-pill" @click="loadHistory">Retry</button>
+          </div>
+
+          <div v-else-if="historyLoading && !history.length" class="d-flex justify-content-center py-4">
+            <div class="typing typing-lg mb-0"><span></span><span></span><span></span></div>
+          </div>
+
+          <div v-else-if="!history.length" class="text-center py-4">
+            <div class="empty-icon mx-auto"><i class="bi bi-clock-history"></i></div>
+            <p class="empty-text mb-0">Your finished interviews will appear here.</p>
+          </div>
+
+          <div v-else class="history-list">
+            <button
+              v-for="item in history"
+              :key="item.id"
+              type="button"
+              class="history-item"
+              @click="openPastInterview(item)"
+            >
+              <span class="history-text">
+                <span class="history-title">{{ item.job_title }}</span>
+                <span class="history-date">{{ formatDate(item.created_at) }}</span>
+              </span>
+              <span class="score-pill">{{ item.overall_score }}/100</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -536,6 +652,28 @@ const tips = [
   .btn-new:disabled{
     background-color: var(--ps-accent);
     color: var(--ps-dark);
+    opacity: 0.5;
+  }
+
+  .btn-history{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ps-light);
+    transition: background-color 0.15s ease;
+  }
+
+  .btn-history:hover:not(:disabled){
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .btn-history:disabled{
     opacity: 0.5;
   }
 
@@ -923,6 +1061,26 @@ const tips = [
     color: #6b7186;
   }
 
+  .result-answer{
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background-color: #f6f7fa;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .result-answer span{
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #7a8094;
+    margin-bottom: 2px;
+  }
+
   .result-feedback{
     margin: 8px 0 0;
     color: #555b70;
@@ -1001,6 +1159,50 @@ const tips = [
 
   .modal-title{
     font-weight: 700;
+  }
+
+  .history-list{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .history-item{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--panel-line);
+    background: #fff;
+    color: var(--ps-dark);
+    text-align: left;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .history-item:hover{
+    background-color: #f6f7fa;
+    border-color: var(--ps-soft);
+  }
+
+  .history-text{
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-right: auto;
+  }
+
+  .history-title{
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .history-date{
+    font-size: 0.85rem;
+    color: #6b7186;
   }
 
   .account-avatar{
@@ -1096,7 +1298,8 @@ const tips = [
   }
 
   @media (max-width: 575.98px){
-    .btn-new span{
+    .btn-new span,
+    .btn-history span{
       display: none;
     }
 
