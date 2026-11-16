@@ -1,5 +1,5 @@
 <script setup>
-useHead({ title: 'PreShape – Practise job interviews' })
+useHead({ title: 'PreShape – Practice job interviews' })
 
 const steps = [
   { icon: 'bi-briefcase', title: 'Describe the job', text: 'Paste the job title and description.' },
@@ -125,7 +125,7 @@ function start(mode) {
           type="button"
           class="btn btn-pill btn-ghost"
           @click="start('login')"
-        >Start practising</button>
+        >Start practicing</button>
       </div>
     </nav>
 
@@ -133,9 +133,8 @@ function start(mode) {
     <section class="container hero">
       <div class="row align-items-center g-5">
         <div class="col-lg-6">
-          <span class="eyebrow"><i class="bi bi-stars"></i> AI interview practice</span>
           <h1 class="hero-title">
-            Practise the interview<br>
+            Practice the interview<br>
             <span class="highlight">before it counts.</span>
           </h1>
           <p class="hero-text">
@@ -196,7 +195,7 @@ function start(mode) {
     <section id="pricing" class="container pricing">
       <div class="text-center mb-5">
         <h2 class="section-title">Simple pricing</h2>
-        <p class="section-text">Practise for free. Upgrade for more interviews, full breakdowns and your history.</p>
+        <p class="section-text">Practice for free. Upgrade for more interviews, full breakdowns and your history.</p>
       </div>
 
       <div class="row g-4 justify-content-center">
@@ -249,7 +248,7 @@ function start(mode) {
           class="btn btn-pill btn-dark-pill"
           @click="start('login')"
         >
-          Start practising <i class="bi bi-arrow-right"></i>
+          Start practicing <i class="bi bi-arrow-right"></i>
         </button>
       </div>
     </section>
@@ -271,7 +270,7 @@ function start(mode) {
             {{ authMode === 'login' ? 'Welcome back' : 'Create your account' }}
           </h2>
           <p class="auth-subtitle">
-            {{ authMode === 'login' ? 'Log in to continue practising.' : 'Get 4 free interviews every month.' }}
+            {{ authMode === 'login' ? 'Log in to continue practicing.' : 'Get 4 free interviews every month.' }}
           </p>
         </div>
 
