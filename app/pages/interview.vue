@@ -198,6 +198,8 @@ async function loadAccount() {
   accountError.value = ''
   try {
     account.value = await $api('/api/me')
+    // Tells app/plugins/ads.client.ts whether to load ads (Free users only)
+    useState('accountPlan').value = account.value.plan
   } catch (error) {
     accountError.value = errorText(error)
   }
@@ -209,7 +211,8 @@ async function logout() {
   const el = document.getElementById('modalSettings')
   el.addEventListener('hidden.bs.modal', async () => {
     await $supabase.auth.signOut()
-    navigateTo('/')
+    // A full reload (not navigateTo) so any ad script loaded for a Free user is removed
+    window.location.assign('/')
   }, { once: true })
   $bootstrap.Modal.getOrCreateInstance(el).hide()
 }

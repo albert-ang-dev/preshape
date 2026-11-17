@@ -9,12 +9,9 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap' }
-      ],
-      // PropellerAds Multitag (zone 311307). Loads on EVERY page, for every visitor.
-      // Needs public/sw.js for the push formats.
-      script: [
-        { src: 'https://quge5.com/88/tag.min.js', 'data-zone': '311307', async: true, 'data-cfasync': 'false' }
       ]
+      // Ads are NOT loaded here (that would show them to everyone).
+      // See app/plugins/ads.client.ts: they load only for logged-in Free users.
     }
   },
   css: [
