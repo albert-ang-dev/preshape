@@ -53,7 +53,12 @@ const sections = [
         <li>You <strong>won't be charged again</strong>.</li>
         <li>You keep all Premium features (8 interviews a month, full breakdowns, history and no ads) until the end of your current billing period.</li>
         <li>After that, your account moves to the <strong>Free plan</strong>: 4 interviews a month, score and summary only, with ads.</li>
-        <li>Your past interviews are <strong>not deleted</strong>. If you subscribe again later, your full history and breakdowns are available again.</li>
+        <li>
+          <strong>Your interview history is not kept on the Free plan.</strong> On the 1st of each
+          month (UTC), interviews from previous months are permanently deleted from Free accounts.
+          So once your account moves to Free, your past interviews will be deleted at the start of
+          the next month. If you subscribe again later, your history starts again from that point.
+        </li>
         <li>You can subscribe again at any time from Account settings.</li>
       </ul>
     </section>

@@ -142,7 +142,10 @@ const sections = [
     <section id="retention">
       <h2>7. How long we keep it</h2>
       <ul>
-        <li><strong>Account and interviews:</strong> until you delete your account. Deleting your account permanently removes your account, profile and interviews right away.</li>
+        <li><strong>Account details:</strong> until you delete your account.</li>
+        <li><strong>Interviews on the Free plan:</strong> only for the current calendar month. On the 1st of each month (UTC), interviews from previous months are automatically and permanently deleted from Free accounts.</li>
+        <li><strong>Interviews on the Premium plan:</strong> kept while your subscription is active, so you can see your history. If your account moves to the Free plan, the Free plan rule above applies from the next 1st of the month.</li>
+        <li><strong>Deleting your account</strong> permanently removes your account, profile and all interviews right away.</li>
         <li><strong>Email hash and monthly usage after deletion:</strong> no longer than 12 months.</li>
         <li><strong>Payment records:</strong> kept by us and Stripe for as long as tax and accounting laws require, even after you delete your account.</li>
         <li><strong>Technical logs:</strong> kept for a short time by our hosting provider for security.</li>
