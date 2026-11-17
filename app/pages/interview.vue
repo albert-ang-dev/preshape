@@ -107,7 +107,6 @@ function sendAnswer() {
 // The results appear once grading is done AND the countdown has finished
 // AND the user clicks "See my results". Premium users never see it.
 const AD_SECONDS = 5
-const { showInterstitial } = useInterstitialAd()
 const adActive = ref(false)        // the ad screen is covering the results
 const adCountdown = ref(0)
 let adTimer = null
@@ -120,7 +119,6 @@ function startAd() {
     adCountdown.value--
     if (adCountdown.value <= 0) clearInterval(adTimer)
   }, 1000)
-  showInterstitial()
 }
 
 function closeAd() {
@@ -480,8 +478,7 @@ const tips = [
             <!-- Ad screen (Free accounts): covers the results until the user continues -->
             <section v-if="adActive" class="ad-screen">
               <div class="ad-label">Advertisement</div>
-              <!-- The PropellerAds interstitial appears on top of the page;
-                   this box is what users see around it, or if it's blocked. -->
+              <!-- Ad space: add an ad network's code here later -->
               <div class="ad-slot">
                 <i class="bi bi-megaphone"></i>
                 <span>Thanks for practicing with PreShape!</span>
