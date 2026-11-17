@@ -6,8 +6,8 @@
 // by a lawyer for your country before launch.
 // ======================================================================
 export const legal = {
-  owner: '[Your full name or company name]',   // who runs PreShape
-  country: '[Your country]',                    // whose laws apply
-  email: '[support@preshape.online]',           // where users can reach you
+  owner: 'Albert Ang',                          // who runs PreShape
+  country: 'the State of New York, United States',   // whose laws apply
+  email: 'support@preshape.online',             // where users can reach you
   effectiveDate: 'November 17, 2026',
 }
