@@ -310,6 +310,11 @@ onMounted(() => {
 
     <footer class="container footer">
       <span>© {{ new Date().getFullYear() }} PreShape</span>
+      <span class="footer-links">
+        <NuxtLink to="/terms">Terms of Service</NuxtLink>
+        <NuxtLink to="/privacy">Privacy Policy</NuxtLink>
+        <NuxtLink to="/refunds">Refunds &amp; Cancellation</NuxtLink>
+      </span>
     </footer>
   </div>
 
@@ -928,11 +933,29 @@ onMounted(() => {
 
   /* ---------- Footer ---------- */
   .footer{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 24px;
     padding-top: 32px;
     padding-bottom: 32px;
     color: var(--muted);
     font-size: 0.9rem;
     text-align: center;
+  }
+
+  .footer-links{
+    display: flex;
+    gap: 16px;
+  }
+
+  .footer-links a{
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .footer-links a:hover{
+    color: var(--ps-light);
   }
 
   /* ---------- Phones ---------- */
