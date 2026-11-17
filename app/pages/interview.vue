@@ -57,6 +57,7 @@ async function startInterview() {
   currentIndex.value = 0
   result.value = null
   interviewId.value = null
+  closeAd()
 
   try {
     const { $api } = useNuxtApp()
@@ -101,9 +102,40 @@ function sendAnswer() {
   }
 }
 
+// ---------- Interstitial ad (Free accounts only) ----------
+// Shown after the last answer, WHILE grading runs, so it adds little waiting.
+// The results appear once grading is done AND the countdown has finished
+// AND the user clicks "See my results". Premium users never see it.
+const AD_SECONDS = 5
+const { showInterstitial } = useInterstitialAd()
+const adActive = ref(false)        // the ad screen is covering the results
+const adCountdown = ref(0)
+let adTimer = null
+
+function startAd() {
+  adActive.value = true
+  adCountdown.value = AD_SECONDS
+  clearInterval(adTimer)
+  adTimer = setInterval(() => {
+    adCountdown.value--
+    if (adCountdown.value <= 0) clearInterval(adTimer)
+  }, 1000)
+  showInterstitial()
+}
+
+function closeAd() {
+  adActive.value = false
+  clearInterval(adTimer)
+  scrollToBottom()
+}
+
+onBeforeUnmount(() => clearInterval(adTimer))
+
 async function finishInterview() {
   phase.value = 'grading'
   errorMessage.value = ''
+  // Only the first time (not when retrying after an error)
+  if (!isPremium.value && !adActive.value) startAd()
   addChat("That's all my questions, thank you! Give me a moment to review your answers.", 'interviewer')
 
   try {
@@ -191,11 +223,59 @@ onMounted(() => {
     return
   }
   loadAccount()
+  handleUpgradeReturn()
 })
 
 // ---------- History (Premium only) ----------
 // The server refuses these requests for Free accounts; this just hides the button.
 const isPremium = computed(() => account.value?.plan === 'premium')
+
+// ---------- Stripe (Premium subscription) ----------
+// These only OPEN Stripe's pages. The plan itself changes on the server,
+// when Stripe confirms the payment to /api/stripe/webhook.
+const billingBusy = ref(false)
+const billingError = ref('')
+const upgradeStatus = ref('')   // '' | 'waiting' | 'success' | 'cancelled' (after returning from Stripe)
+
+async function openStripe(path) {
+  const { $api } = useNuxtApp()
+  billingBusy.value = true
+  billingError.value = ''
+  try {
+    const { url } = await $api(path, { method: 'POST' })
+    window.location.href = url   // Stripe's own page
+  } catch (error) {
+    billingError.value = errorText(error)
+    billingBusy.value = false
+  }
+}
+
+const upgrade = () => openStripe('/api/stripe/checkout')
+const manageSubscription = () => openStripe('/api/stripe/portal')
+
+// Back from Stripe Checkout: the webhook may take a few seconds,
+// so check the plan a few times before giving up.
+const route = useRoute()
+async function handleUpgradeReturn() {
+  const outcome = route.query.upgrade
+  if (!outcome) return
+  navigateTo('/interview', { replace: true })   // tidy the address bar
+
+  if (outcome === 'cancelled') {
+    upgradeStatus.value = 'cancelled'
+    return
+  }
+  upgradeStatus.value = 'waiting'
+  for (let i = 0; i < 10; i++) {
+    await loadAccount()
+    if (isPremium.value) {
+      upgradeStatus.value = 'success'
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 2000))
+  }
+  upgradeStatus.value = ''   // still processing; the plan will update on the next visit
+}
 const history = ref([])        // [{ id, job_title, overall_score, created_at }]
 const historyLoading = ref(false)
 const historyError = ref('')
@@ -331,6 +411,17 @@ const tips = [
 
         <!-- Messages: fills the free space and scrolls when full -->
         <div class="panel-body" ref="chatBody">
+          <!-- Back from Stripe Checkout -->
+          <div v-if="upgradeStatus" class="notice-box">
+            <i class="bi" :class="upgradeStatus === 'success' ? 'bi-stars' : 'bi-info-circle'"></i>
+            <span class="flex-grow-1">
+              <template v-if="upgradeStatus === 'waiting'">Payment received. Activating Premium…</template>
+              <template v-else-if="upgradeStatus === 'success'">Welcome to Premium! Your history and full breakdowns are unlocked.</template>
+              <template v-else>Checkout cancelled. You haven't been charged.</template>
+            </span>
+            <button class="btn-close btn-sm" aria-label="Dismiss" @click="upgradeStatus = ''"></button>
+          </div>
+
           <!-- Error from generating, grading or saving -->
           <div v-if="errorMessage" class="error-box">
             <i class="bi bi-exclamation-circle"></i>
@@ -386,8 +477,32 @@ const tips = [
               </div>
             </div>
 
+            <!-- Ad screen (Free accounts): covers the results until the user continues -->
+            <section v-if="adActive" class="ad-screen">
+              <div class="ad-label">Advertisement</div>
+              <!-- The PropellerAds interstitial appears on top of the page;
+                   this box is what users see around it, or if it's blocked. -->
+              <div class="ad-slot">
+                <i class="bi bi-megaphone"></i>
+                <span>Thanks for practicing with PreShape!</span>
+              </div>
+              <p class="ad-status">
+                <template v-if="phase === 'grading'">Grading your answers…</template>
+                <template v-else>Your results are ready!</template>
+              </p>
+              <button
+                class="btn btn-primary rounded-pill px-4 py-2"
+                :disabled="phase !== 'done' || adCountdown > 0"
+                @click="closeAd"
+              >
+                <template v-if="adCountdown > 0">See my results in {{ adCountdown }}…</template>
+                <template v-else-if="phase !== 'done'">Almost there…</template>
+                <template v-else>See my results <i class="bi bi-arrow-right"></i></template>
+              </button>
+            </section>
+
             <!-- Grading in progress -->
-            <div v-if="phase === 'grading' && !errorMessage" class="msg-row msg-row-interviewer">
+            <div v-if="phase === 'grading' && !errorMessage && !adActive" class="msg-row msg-row-interviewer">
               <span class="msg-avatar"><i class="bi bi-person-badge"></i></span>
               <div class="bubble bubble-interviewer">
                 <div class="typing"><span></span><span></span><span></span></div>
@@ -395,7 +510,7 @@ const tips = [
             </div>
 
             <!-- The result -->
-            <section v-if="(phase === 'done' || phase === 'review') && result" class="result">
+            <section v-if="(phase === 'done' || phase === 'review') && result && !adActive" class="result">
               <div class="score-card">
                 <div class="score-label">Overall score</div>
                 <div class="score-number">{{ result.overall_score }}<span>/100</span></div>
@@ -493,6 +608,43 @@ const tips = [
             <div class="info-row"><span>Account type</span><strong>{{ user.accountType }}</strong></div>
             <div class="info-row"><span>Member since</span><strong>{{ user.memberSince }}</strong></div>
             <div class="info-row"><span>Interviews this month</span><strong>{{ user.interviewsThisMonth }} of {{ user.interviewsPerMonth }}</strong></div>
+          </div>
+
+          <div v-if="billingError" class="error-box mt-3">
+            <i class="bi bi-exclamation-circle"></i>
+            <span class="flex-grow-1">{{ billingError }}</span>
+          </div>
+
+          <!-- Premium: manage or cancel in Stripe's Customer Portal -->
+          <button
+            v-if="isPremium"
+            type="button"
+            class="btn btn-secondary rounded-pill w-100 mt-3"
+            :disabled="billingBusy"
+            @click="manageSubscription"
+          >
+            <i class="bi bi-credit-card"></i> {{ billingBusy ? 'Opening…' : 'Manage subscription' }}
+          </button>
+
+          <!-- Upgrade option: Free accounts only. Opens Stripe Checkout;
+               the plan changes only when Stripe confirms the payment. -->
+          <div v-if="account && !isPremium" class="upgrade-card">
+            <div class="d-flex justify-content-between align-items-baseline mb-2">
+              <span class="upgrade-title"><i class="bi bi-stars"></i> Premium</span>
+              <span class="upgrade-price">$12<span>/month</span></span>
+            </div>
+            <ul class="upgrade-list">
+              <li><i class="bi bi-check2"></i> 8 interviews every month</li>
+              <li><i class="bi bi-check2"></i> Full question-by-question breakdown</li>
+              <li><i class="bi bi-check2"></i> Your interview history</li>
+              <li><i class="bi bi-check2"></i> No ads</li>
+            </ul>
+            <button type="button" class="btn btn-primary rounded-pill w-100" :disabled="billingBusy" @click="upgrade">
+              {{ billingBusy ? 'Opening checkout…' : 'Upgrade to Premium' }}
+            </button>
+            <p class="upgrade-notice mb-0">
+              <i class="bi bi-lock"></i> Secure payment by Stripe. Cancel any time.
+            </p>
           </div>
         </div>
         <div class="modal-footer">
@@ -960,6 +1112,55 @@ const tips = [
     color: #8a1c2b;
   }
 
+  .ad-screen{
+    margin-top: 12px;
+    padding: 24px;
+    border-radius: 20px;
+    border: 1px solid var(--panel-line);
+    text-align: center;
+  }
+
+  .ad-label{
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a8094;
+    margin-bottom: 10px;
+  }
+
+  .ad-slot{
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 14px;
+    background-color: #f6f7fa;
+    color: #6b7186;
+    font-size: 0.95rem;
+  }
+
+  .ad-slot i{
+    font-size: 1.75rem;
+  }
+
+  .ad-status{
+    margin: 16px 0 12px;
+    color: #6b7186;
+  }
+
+  .notice-box{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background-color: var(--ps-light);
+    color: var(--ps-dark);
+  }
+
   /* ----- Result ----- */
   .result{
     margin-top: 12px;
@@ -1159,6 +1360,53 @@ const tips = [
 
   .modal-title{
     font-weight: 700;
+  }
+
+  .upgrade-card{
+    margin-top: 16px;
+    padding: 18px;
+    border-radius: 16px;
+    background-color: var(--ps-light);
+    color: var(--ps-dark);
+  }
+
+  .upgrade-title{
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+
+  .upgrade-price{
+    font-weight: 800;
+    font-size: 1.25rem;
+  }
+
+  .upgrade-price span{
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #685044;
+  }
+
+  .upgrade-list{
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    font-size: 0.93rem;
+  }
+
+  .upgrade-list li + li{
+    margin-top: 4px;
+  }
+
+  .upgrade-list i{
+    color: #685044;
+    margin-right: 6px;
+  }
+
+  .upgrade-notice{
+    margin-top: 10px;
+    font-size: 0.88rem;
+    text-align: center;
+    color: #685044;
   }
 
   .history-list{
