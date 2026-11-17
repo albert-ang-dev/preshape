@@ -217,6 +217,42 @@ async function logout() {
   $bootstrap.Modal.getOrCreateInstance(el).hide()
 }
 
+// ---------- Delete account ----------
+// The server checks the password, cancels any Stripe subscription first,
+// then deletes the interviews and the login. See server/api/account/delete.post.ts.
+const deletePassword = ref('')
+const deleteConfirm = ref('')
+const deleteBusy = ref(false)
+const deleteError = ref('')
+const canDelete = computed(() => deleteConfirm.value.trim() === 'DELETE' && !!deletePassword.value && !deleteBusy.value)
+
+function resetDeleteForm() {
+  deletePassword.value = ''
+  deleteConfirm.value = ''
+  deleteError.value = ''
+}
+
+async function deleteAccount() {
+  if (!canDelete.value) return
+  const { $api, $supabase } = useNuxtApp()
+  deleteBusy.value = true
+  deleteError.value = ''
+  try {
+    await $api('/api/account/delete', {
+      method: 'POST',
+      body: { password: deletePassword.value, confirm: deleteConfirm.value.trim() },
+    })
+  } catch (error) {
+    deleteError.value = errorText(error)
+    deleteBusy.value = false
+    return
+  }
+  // The account is gone: clear the local session and start fresh
+  // (a full reload also removes any ad script)
+  await $supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+  window.location.assign('/?deleted=1')
+}
+
 // Only logged-in users may use the app; everyone else goes back to the home page
 onMounted(() => {
   if (!authUser.value) {
@@ -646,6 +682,19 @@ const tips = [
               <i class="bi bi-lock"></i> Secure payment by Stripe. Cancel any time.
             </p>
           </div>
+
+          <!-- Danger zone: kept small and away from Log out -->
+          <div class="text-center mt-4">
+            <button
+              type="button"
+              class="btn btn-link delete-link"
+              data-bs-toggle="modal"
+              data-bs-target="#modalDeleteAccount"
+              @click="resetDeleteForm"
+            >
+              Delete account
+            </button>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-accent rounded-pill me-auto" @click="logout">
@@ -653,6 +702,58 @@ const tips = [
           </button>
           <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Delete account modal ================= -->
+  <div class="modal fade" id="modalDeleteAccount" tabindex="-1" aria-labelledby="modalDeleteAccountLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form @submit.prevent="deleteAccount">
+          <div class="modal-header">
+            <h5 class="modal-title text-danger" id="modalDeleteAccountLabel">Delete account</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" :disabled="deleteBusy"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2">This <strong>permanently</strong> deletes your account and all your interviews. It can't be undone.</p>
+            <ul class="delete-list">
+              <li v-if="isPremium">Your Premium subscription is cancelled right away. Remaining time isn't refunded.</li>
+              <li>Interviews you've used this month still count if you sign up again with the same email.</li>
+            </ul>
+
+            <label class="form-label fw-semibold" for="deletePasswordInput">Your password</label>
+            <input
+              id="deletePasswordInput"
+              v-model="deletePassword"
+              type="password"
+              class="form-control mb-3"
+              autocomplete="current-password"
+              :disabled="deleteBusy"
+            >
+
+            <label class="form-label fw-semibold" for="deleteConfirmInput">Type <code>DELETE</code> to confirm</label>
+            <input
+              id="deleteConfirmInput"
+              v-model="deleteConfirm"
+              type="text"
+              class="form-control"
+              autocomplete="off"
+              :disabled="deleteBusy"
+            >
+
+            <div v-if="deleteError" class="error-box mt-3">
+              <i class="bi bi-exclamation-circle"></i>
+              <span class="flex-grow-1">{{ deleteError }}</span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal" :disabled="deleteBusy">Cancel</button>
+            <button type="submit" class="btn btn-danger rounded-pill px-4" :disabled="!canDelete">
+              {{ deleteBusy ? 'Deleting…' : 'Delete my account' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -1407,6 +1508,24 @@ const tips = [
     font-size: 0.88rem;
     text-align: center;
     color: #685044;
+  }
+
+  .delete-link{
+    font-size: 0.88rem;
+    color: #b02a37;
+    text-decoration: none;
+  }
+
+  .delete-link:hover{
+    color: #8a1c2b;
+    text-decoration: underline;
+  }
+
+  .delete-list{
+    padding-left: 18px;
+    margin-bottom: 16px;
+    font-size: 0.92rem;
+    color: #555b70;
   }
 
   .history-list{

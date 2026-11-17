@@ -2,6 +2,8 @@
 // An interview counts as soon as it's STARTED (questions generated), whether
 // or not it's finished, because that's when the OpenAI cost happens.
 
+import { createHash } from 'node:crypto'
+
 export const PLAN_LIMITS: Record<string, number> = { free: 4, premium: 8 }
 
 // Midnight UTC on the 1st of the current month
@@ -35,7 +37,34 @@ export async function requirePremium(userId: string) {
   }
 }
 
-export async function getMonthlyUsage(userId: string) {
+// SHA-256 of a lowercased email, so deleted accounts can be recognised
+// without storing the address itself
+export function hashEmail(email: string) {
+  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+}
+
+// Interviews used this month by DELETED accounts with this email, so deleting
+// and re-registering doesn't reset the monthly limit
+async function deletedAccountUsage(email: string | undefined) {
+  if (!email) return 0
+  const { data, error } = await useSupabase()
+    .from('deleted_accounts')
+    .select('interviews_used')
+    .eq('email_hash', hashEmail(email))
+    .gte('deleted_at', startOfMonthUTC().toISOString())
+
+  if (error) {
+    // Table not created yet (supabase/delete-account.sql not run): don't break the app
+    if (error.code === 'PGRST205' || error.code === '42P01') {
+      console.warn('deleted_accounts table is missing. Run supabase/delete-account.sql.')
+      return 0
+    }
+    throw createError({ statusCode: 500, statusMessage: `Could not check your usage: ${error.message}` })
+  }
+  return (data ?? []).reduce((sum, row) => sum + (row.interviews_used ?? 0), 0)
+}
+
+export async function getMonthlyUsage(userId: string, email?: string) {
   const supabase = useSupabase()
 
   const { data: profile, error: profileError } = await supabase
@@ -60,7 +89,7 @@ export async function getMonthlyUsage(userId: string) {
 
   const plan = profile?.plan === 'premium' ? 'premium' : 'free'
   const limit = PLAN_LIMITS[plan]
-  const used = count ?? 0
+  const used = (count ?? 0) + await deletedAccountUsage(email)
 
   return {
     name: profile?.name ?? '',

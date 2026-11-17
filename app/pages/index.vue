@@ -146,10 +146,28 @@ function start(mode) {
   const { $bootstrap } = useNuxtApp()
   $bootstrap.Modal.getOrCreateInstance(document.getElementById('authModal')).show()
 }
+
+// After "Delete account", the app sends users here with ?deleted=1
+const accountDeleted = ref(false)
+onMounted(() => {
+  if (useRoute().query.deleted) {
+    accountDeleted.value = true
+    navigateTo('/', { replace: true })   // tidy the address bar
+  }
+})
 </script>
 
 <template>
   <div class="home">
+    <!-- Shown once after deleting an account -->
+    <div v-if="accountDeleted" class="container pt-3">
+      <div class="deleted-notice">
+        <i class="bi bi-check-circle"></i>
+        <span class="flex-grow-1">Your account has been deleted. Thanks for practicing with PreShape.</span>
+        <button type="button" class="btn-close btn-close-white btn-sm" aria-label="Dismiss" @click="accountDeleted = false"></button>
+      </div>
+    </div>
+
     <!-- Top bar -->
     <nav class="container nav-bar">
       <NuxtLink to="/" class="logo">
@@ -388,6 +406,17 @@ function start(mode) {
 </template>
 
 <style scoped>
+  .deleted-notice{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(249, 222, 201, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--ps-light);
+  }
+
   .home{
     --muted: #B5BEC6;
     --line: rgba(181, 190, 198, 0.16);

@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Monthly limit: checked before any money is spent on OpenAI
-  const usage = await getMonthlyUsage(user.id)
+  const usage = await getMonthlyUsage(user.id, user.email)
   if (usage.remaining <= 0) {
     const resetDate = new Date(usage.resetsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })
     throw createError({
