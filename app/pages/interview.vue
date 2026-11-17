@@ -10,11 +10,11 @@ const jobDescription = ref('')
 const phase = ref('idle')
 const errorMessage = ref('')
 
-const questions = ref([])      // the 10 from /api/questions
-const answers = ref([])        // the user's answers, same order
-const currentIndex = ref(0)    // which question we're on
-const chats = ref([])          // what the bubbles display
-const result = ref(null)       // the saved, graded interview
+const questions = ref([])      
+const answers = ref([])        
+const currentIndex = ref(0)    
+const chats = ref([])          
+const result = ref(null)       
 const interviewId = ref(null)  // the row /api/questions saved when the interview started
 
 const chatBody = ref(null)     // the scrolling message area

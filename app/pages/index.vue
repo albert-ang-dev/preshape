@@ -1,5 +1,42 @@
 <script setup>
-useHead({ title: 'PreShape – Practice job interviews' })
+// ---------- SEO ----------
+const siteUrl = useRuntimeConfig().public.siteUrl
+const seoTitle = 'PreShape – AI Job Interview Practice with Instant Feedback'
+const seoDescription =
+  'Practice job interviews with AI. Paste a job description, answer 10 tailored questions, '
+  + 'and get a score with clear feedback. 4 free interviews every month.'
+
+useSeoMeta({
+  title: seoTitle,
+  description: seoDescription,
+  ogTitle: seoTitle,
+  ogDescription: seoDescription,
+  ogUrl: siteUrl + '/',
+  twitterTitle: seoTitle,
+  twitterDescription: seoDescription,
+  robots: 'index, follow',
+})
+
+useHead({
+  link: [{ rel: 'canonical', href: siteUrl + '/' }],
+  // Structured data: helps Google understand what PreShape is and what it costs
+  script: [{
+    type: 'application/ld+json',
+    innerHTML: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebApplication',
+      name: 'PreShape',
+      url: siteUrl + '/',
+      description: seoDescription,
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Any (web browser)',
+      offers: [
+        { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD', description: '4 interviews per month, overall score and summary' },
+        { '@type': 'Offer', name: 'Premium', price: '12', priceCurrency: 'USD', description: '8 interviews per month, full breakdown, interview history, no ads' },
+      ],
+    }),
+  }],
+})
 
 const steps = [
   { icon: 'bi-briefcase', title: 'Describe the job', text: 'Paste the job title and description.' },
